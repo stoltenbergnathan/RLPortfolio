@@ -21,17 +21,15 @@ class StockData():
 
     Attributes:
         date (str): date this data was recorded
-        price (float): price of the stock
-        rsi (float): the RSI of the stock
+        high (float): high price of the stock for the date
     """
-    def __init__(self, date: str, price: float, pe: float) -> None:
+    def __init__(self, date: str, high: float) -> None:
         self.date = date
-        self.price = price
-        self.pe = pe
+        self.high = high 
     
 
     def __str__(self) -> str:
-        return f"StockData(date:{self.date}, price:{self.price}, pe:{self.pe})"
+        return f"StockData(date: {self.date}, high: {self.high})"
 
 
 class Stock():
@@ -47,6 +45,9 @@ class Stock():
         self.ticker = ticker
         self.data = data
         self.prediciton = prediction
+    
+    def __str__(self) -> str:
+        return f"Stock(ticker: {self.ticker}, data: StockData({len(self.data)}), prediction: {self.prediciton.name})"
 
 
 class Sector():
