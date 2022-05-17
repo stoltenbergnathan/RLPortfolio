@@ -1,4 +1,4 @@
-from time import sleep
+from threading import Thread
 from bs4 import BeautifulSoup
 import requests
 import concurrent.futures
@@ -16,11 +16,11 @@ def get_SP_tickers() -> list[str]:
 
 def get_price_history(ticker: str):
     tl = yf.Ticker(ticker)
-    history: pandas.DataFrame = tl.history(period="max")
+    history: pandas.DataFrame = tl.history(period = "1y", interval = "1wk")
     datalist = []
     for i in history.index:
         datalist.append(StockData(date=str(i), high=history.loc[[i], ["High"]].values[0][0]))
     print(Stock(ticker=ticker, data=datalist, prediction=Action.hold))
 
-with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
+with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
     executor.map(get_price_history, get_SP_tickers())
