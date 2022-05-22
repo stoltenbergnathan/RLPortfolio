@@ -4,7 +4,6 @@ import requests
 import concurrent.futures
 import pandas
 import yfinance as yf
-from type import *
 
 def get_SP_tickers() -> list[str]:
     resp = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
@@ -16,11 +15,19 @@ def get_SP_tickers() -> list[str]:
 
 def get_price_history(ticker: str):
     tl = yf.Ticker(ticker)
-    history: pandas.DataFrame = tl.history(period = "1y", interval = "1wk")
+    history: pandas.DataFrame = tl.history(period = "1y", interval = "1d")
     datalist = []
     for i in history.index:
-        datalist.append(StockData(date=str(i), high=history.loc[[i], ["High"]].values[0][0]))
-    print(Stock(ticker=ticker, data=datalist, prediction=Action.hold))
+        datalist.append(history.loc[[i], ["High"]].values[0][0])
+    return datalist
 
-with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
-    executor.map(get_price_history, get_SP_tickers())
+def get_percent_history(ticker: str):
+    tl = yf.Ticker(ticker)
+    history: pandas.DataFrame = tl.history(period = "1y", interval = "1d")
+    dl = []
+    for i in history.index:
+        open = history.loc[[i], ["Open"]].values[0][0]
+        close = history.loc[[i], ["Close"]].values[0][0]
+        change = ((close - open) / open) * 100
+        dl.append(change)
+    return dl

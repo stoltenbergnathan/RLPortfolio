@@ -1,34 +1,98 @@
-from bs4 import BeautifulSoup
+import enum
+import sys
+from typing import Any, Tuple
 from matplotlib import pyplot as plt
-import requests
+import pandas
 import numpy as np
 import tensorflow as tf
 from tensorflow import keras
 from keras import layers
 import tensorflow_probability as tfp
+import yfinance as yf
+
+class Actions(enum.Enum):
+    SELL = 0
+    HOLD = 1
+    BUY = 2
+
+class Env():
+    def __init__(self, ticker) -> None:
+        self.ticker = ticker
+        self.day = 0
+        self.history = self.get_history(ticker)
+    
+    def get_history(self, ticker) -> list[float]:
+        tl = yf.Ticker(ticker)
+        history: pandas.DataFrame = tl.history(period = "2y", interval = "1d")
+        datalist = []
+        for i in history.index:
+            datalist.append(history.loc[[i], ["High"]].values[0][0])
+        return datalist
+    
+    def get_highs(self) -> list[float]:
+        dl = []
+        if len(self.history) - self.day < 10:
+            return dl
+        for index in range(self.day, self.day + 10):
+            dl.append(self.history[index])
+        self.day += 1
+        return dl
 
 
-def get_SP_tickers() -> list[str]:
-    resp = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
-    soup = BeautifulSoup(resp.text, 'html.parser')
-    table = soup.find(id="constituents")
-    return [
-        row.find('a').text
-    for row in table.tbody.find_all("tr")][1:]
+class State():
+    def __init__(self, highs) -> None:
+        self.highs = highs
+        self.currentPrice = highs[-1] if len(highs) != 0 else -1
+    
+    def preform_action(self, action: Actions, env: Env) -> Tuple[Any, float, bool]:
+        new_highs = env.get_highs()
+        if len(new_highs) != 0:
+            change = 100 * (1 - (self.currentPrice / new_highs[-1]))
+            if action == Actions.BUY.value:
+                if change > 0:
+                    Rreward = change
+                else:
+                    Rreward = -1 * change
+            elif action == Actions.SELL.value:
+                if change < 0:
+                    Rreward = -1 * change
+                else:
+                    Rreward = change
+            elif action == Actions.HOLD.value:
+                Rreward = 0
+            else:
+                print(action)
+                sys.exit(1)
+            return State(new_highs), Rreward, False
+        else:
+            return State([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]), 0, True
 
 
 class Critic(keras.Model):
     def __init__(self):
         super().__init__()
-        self.d1 = layers.Dense(4, activation='relu')
+        self.d1 = layers.Dense(10, activation='relu')
+        self.d1 = layers.Dense(5, activation='relu')
         self.v = layers.Dense(1, activation=None)
+    
+
+    def call(self, input_data):
+        x = self.d1(input_data)
+        v = self.v(x)
+        return v
 
 
 class Actor(keras.Model):
     def __init__(self):
         super().__init__()
-        self.d1 = layers.Dense(4, activation='relu')
-        self.a = layers.Dense(3, activation=None)
+        self.d1 = layers.Dense(10, activation='relu')
+        self.a = layers.Dense(3, activation='softmax')
+    
+
+    def call(self, input_data):
+        x = self.d1(input_data)
+        a = self.a(x)
+        return a 
     
 
 class Agent():
@@ -41,7 +105,7 @@ class Agent():
 
           
     def act(self,state):
-        prob = self.actor(np.array([state]))
+        prob = self.actor(np.array([np.array(state)]))
         prob = prob.numpy()
         dist = tfp.distributions.Categorical(probs=prob, dtype=tf.float32)
         action = dist.sample()
@@ -60,11 +124,11 @@ class Agent():
         e_loss = []
         td = td.numpy()
         for pb, t, lpb in zip(probability, td, log_probability):
-                        t =  tf.constant(t)
-                        policy_loss = tf.math.multiply(lpb,t)
-                        entropy_loss = tf.math.negative(tf.math.multiply(pb,lpb))
-                        p_loss.append(policy_loss)
-                        e_loss.append(entropy_loss)
+            t =  tf.constant(t)
+            policy_loss = tf.math.multiply(lpb,t)
+            entropy_loss = tf.math.negative(tf.math.multiply(pb,lpb))
+            p_loss.append(policy_loss)
+            e_loss.append(entropy_loss)
         p_loss = tf.stack(p_loss)
         e_loss = tf.stack(e_loss)
         p_loss = tf.reduce_mean(p_loss)
@@ -82,7 +146,7 @@ class Agent():
             v = tf.reshape(v, (len(v),))
             td = tf.math.subtract(discnt_rewards, v)
             a_loss = self.actor_loss(p, actions, td)
-            c_loss = 0.5*np.square(np.subtract(discnt_rewards, v)).mean()
+            c_loss = keras.metrics.mean_squared_error(discnt_rewards, v)
             grads1 = tape1.gradient(a_loss, self.actor.trainable_variables)
             grads2 = tape2.gradient(c_loss, self.critic.trainable_variables)
             self.a_opt.apply_gradients(zip(grads1, self.actor.trainable_variables))
@@ -98,7 +162,7 @@ def preproccess(states, actions, rewards, gamma):
       sum_reward = r + gamma*sum_reward
       discnt_rewards.append(sum_reward)
     discnt_rewards.reverse()
-    states = np.array(states, dtype=np.float32)
+    states = np.vstack(states).astype(np.float64)
     actions = np.array(actions, dtype=np.int32)
     discnt_rewards = np.array(discnt_rewards, dtype=np.float32)
     return states, actions, discnt_rewards
@@ -112,7 +176,8 @@ total_avgr = []
 
 for step in range(steps):
     done = False
-    state = None # TODO reset the env here
+    env = Env("AAPL")
+    state = State(env.get_highs())
     total_reward = 0
     all_aloss = []
     all_closs = []
@@ -121,10 +186,10 @@ for step in range(steps):
     actions = []
 
     while not done:
-        action = agent.act(state)
-        next_state, reward, done, _ = 0 # TODO return these variables by interacting with the environment
+        action = agent.act(state.highs) - 1
+        next_state, reward, done = state.preform_action(action, env)
         rewards.append(reward)
-        states.append(state)
+        states.append(state.highs)
         actions.append(action)
         state = next_state
         total_reward += reward
