@@ -5,7 +5,7 @@ from classes import *
 from dataFunctions import *
 
 
-EPISODES = 100
+EPISODES = 250
 GAMMA = 0.99
 TRAINING = True
 TICKERS = get_SP_tickers()

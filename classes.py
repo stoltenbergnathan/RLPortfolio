@@ -6,10 +6,10 @@ from dataFunctions import *
 from os.path import exists
 
 NUM_INPUTS = 10
-ACTOR_HIDDEN = [100, 250, 100]
-CRITIC_HIDDEN = [100, 250, 100]
+ACTOR_HIDDEN = [250]
+CRITIC_HIDDEN = [250]
 NUM_ACTIONS = 2
-LEARNING_RATE = 0.000001
+LEARNING_RATE = 0.00001
 
 
 class Actions(Enum):
