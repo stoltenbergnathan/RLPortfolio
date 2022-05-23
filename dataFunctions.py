@@ -1,7 +1,5 @@
-from threading import Thread
 from bs4 import BeautifulSoup
 import requests
-import concurrent.futures
 import pandas
 import yfinance as yf
 
@@ -13,13 +11,6 @@ def get_SP_tickers() -> list[str]:
         row.find('a').text
     for row in table.tbody.find_all("tr")][1:]
 
-def get_price_history(ticker: str):
-    tl = yf.Ticker(ticker)
-    history: pandas.DataFrame = tl.history(period = "1y", interval = "1d")
-    datalist = []
-    for i in history.index:
-        datalist.append(history.loc[[i], ["High"]].values[0][0])
-    return datalist
 
 def get_percent_history(ticker: str):
     tl = yf.Ticker(ticker)

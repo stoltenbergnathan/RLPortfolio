@@ -6,9 +6,10 @@ from dataFunctions import *
 from os.path import exists
 
 NUM_INPUTS = 10
-NUM_HIDDEN = 100
+ACTOR_HIDDEN = [10]
+CRITIC_HIDDEN = [10]
 NUM_ACTIONS = 2
-LEARNING_RATE = 0.0005
+LEARNING_RATE = 0.00001
 
 
 class Actions(Enum):
@@ -49,29 +50,33 @@ class Env:
 
 
 class Actor(tf.keras.Model):
-    def __init__(self, num_inputs, num_actions, num_hidden) -> None:
+    def __init__(self, num_inputs, num_actions, hidden_layers) -> None:
         super().__init__()
+        self.hidden_layers = hidden_layers
         self.inpu = tf.keras.layers.Dense(num_inputs, activation='relu')
-        self.h1 = tf.keras.layers.Dense(num_hidden, activation='relu')
+        self.dense_layers = [tf.keras.layers.Dense(nodes) for nodes in hidden_layers]
         self.actions = tf.keras.layers.Dense(num_actions, activation = 'softmax')
     
     def call(self, input):
         tmp = self.inpu(input)
-        tmp = self.h1(tmp)
+        for layer in self.dense_layers:
+            tmp = layer(tmp)
         actions = self.actions(tmp)
         return actions
 
 
 class Critic(tf.keras.Model):
-    def __init__(self, num_inputs, num_hidden) -> None:
+    def __init__(self, num_inputs, hidden_layers) -> None:
         super().__init__()
+        self.hidden_layers = hidden_layers
         self.inpu = tf.keras.layers.Dense(num_inputs, activation='relu')
-        self.h1 = tf.keras.layers.Dense(num_hidden, activation='relu')
+        self.dense_layers = [tf.keras.layers.Dense(nodes) for nodes in hidden_layers]
         self.value = tf.keras.layers.Dense(1, activation = None)
     
     def call(self, input):
         tmp = self.inpu(input)
-        tmp = self.h1(tmp)
+        for layer in self.dense_layers:
+            tmp = layer(tmp)
         value = self.value(tmp)
         return value
 
@@ -81,7 +86,6 @@ class Agent:
         self.gamma = gamma
         self.actor_opt = tf.keras.optimizers.Adam(learning_rate = LEARNING_RATE)
         self.critic_opt = tf.keras.optimizers.Adam(learning_rate = LEARNING_RATE)
-        # If model folders exist use them
         self.actor = self.init_a()
         self.critic = self.init_c()
     
@@ -91,7 +95,7 @@ class Agent:
         if exists(actor_path):
             return tf.keras.models.load_model(actor_path)
         else:
-            return Actor(NUM_INPUTS, NUM_ACTIONS, NUM_HIDDEN)
+            return Actor(NUM_INPUTS, NUM_ACTIONS, ACTOR_HIDDEN)
     
 
     def init_c(self):
@@ -99,7 +103,7 @@ class Agent:
         if exists(critic_path):
             return tf.keras.models.load_model(critic_path)
         else:
-            return Critic(NUM_INPUTS, NUM_HIDDEN)
+            return Critic(NUM_INPUTS, CRITIC_HIDDEN)
 
 
     def act(self, state: list[float]) -> int:
