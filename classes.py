@@ -6,10 +6,10 @@ from dataFunctions import *
 from os.path import exists
 
 NUM_INPUTS = 10
-ACTOR_HIDDEN = [10]
-CRITIC_HIDDEN = [10]
+ACTOR_HIDDEN = [100, 250, 100]
+CRITIC_HIDDEN = [100, 250, 100]
 NUM_ACTIONS = 2
-LEARNING_RATE = 0.00001
+LEARNING_RATE = 0.000001
 
 
 class Actions(Enum):
@@ -23,8 +23,8 @@ class State:
 
 
 class Env:
-    def __init__(self, ticker: str) -> None:
-        self.history = get_percent_history(ticker)
+    def __init__(self, p_hist: list[float]) -> None:
+        self.history = p_hist
         self.max = NUM_INPUTS
 
     def do_something(self, action: int):
@@ -41,6 +41,21 @@ class Env:
             else:
                 reward = -abs(new_change)
             return new_state, reward, False
+    
+
+    def expected_action(self):
+        if len(self.history) - self.max < NUM_INPUTS:
+            return -1, [], True
+        else:
+            new_state = State(self.history[self.max-NUM_INPUTS:self.max])
+            self.max += 1
+            new_change = new_state.highs[-1]
+            if new_change > 0:
+                return Actions.INCREASE.value, new_state, False
+            else:
+                return Actions.DECREASE.value, new_state, False
+
+
 
             
     def get_init_state(self) -> State:

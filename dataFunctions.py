@@ -1,7 +1,9 @@
 from bs4 import BeautifulSoup
+import numpy as np
 import requests
 import pandas
 import yfinance as yf
+from classes import *
 
 def get_SP_tickers() -> list[str]:
     resp = requests.get("https://en.wikipedia.org/wiki/List_of_S%26P_500_companies")
@@ -13,6 +15,7 @@ def get_SP_tickers() -> list[str]:
 
 
 def get_percent_history(ticker: str):
+    print(ticker)
     tl = yf.Ticker(ticker)
     history: pandas.DataFrame = tl.history(period = "1y", interval = "1d")
     dl = []
@@ -20,5 +23,7 @@ def get_percent_history(ticker: str):
         open = history.loc[[i], ["Open"]].values[0][0]
         close = history.loc[[i], ["Close"]].values[0][0]
         change = ((close - open) / open) * 100
+        if np.isnan(change):
+            return []
         dl.append(change)
     return dl
