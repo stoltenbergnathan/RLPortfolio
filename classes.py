@@ -5,11 +5,12 @@ import tensorflow_probability as tfp
 from dataFunctions import *
 from os.path import exists
 
-NUM_INPUTS = 10
-ACTOR_HIDDEN = [250]
-CRITIC_HIDDEN = [250]
+LOOKBACK = 10
+NUM_INPUTS = LOOKBACK + 1
+ACTOR_HIDDEN = [125, 250]
+CRITIC_HIDDEN = [125, 250]
 NUM_ACTIONS = 2
-LEARNING_RATE = 0.00001
+LEARNING_RATE = 0.000001
 
 
 class Actions(Enum):
@@ -18,22 +19,32 @@ class Actions(Enum):
 
 
 class State:
-    def __init__(self, highs) -> None:
-        self.highs = highs
+    def __init__(self, hist_diff: list[float], rsi: float) -> None:
+        self.hist_diff = hist_diff
+        self.rsi = rsi
+    
+    def state(self):
+        tmp = self.hist_diff.copy()
+        tmp.append(self.rsi)
+        return tmp
 
 
 class Env:
-    def __init__(self, p_hist: list[float]) -> None:
-        self.history = p_hist
-        self.max = NUM_INPUTS
+    def __init__(self, p_hist) -> None:
+        self.history = get_ticker_history(p_hist)
+        self.max = LOOKBACK
 
     def do_something(self, action: int):
-        if len(self.history) - self.max < NUM_INPUTS:
-            return State([0.0] * NUM_INPUTS), 0, True
+        if len(self.history) - self.max < LOOKBACK:
+            return State([0.0] * LOOKBACK, 0.0), 0.0, True
         else:
-            new_state = State(self.history[self.max-NUM_INPUTS:self.max])
+            hist_diff=get_diff_hist(self.history, self.max - LOOKBACK, self.max)
+            new_state = State(
+                hist_diff=hist_diff,
+                rsi=get_RSI(hist_diff)
+            )
             self.max += 1
-            new_change = new_state.highs[-1]
+            new_change = new_state.hist_diff[-1]
             if action == Actions.DECREASE.value and new_change < 0.0:
                 reward = abs(new_change)
             elif action == Actions.INCREASE.value and new_change > 0.0:
@@ -41,27 +52,32 @@ class Env:
             else:
                 reward = -abs(new_change)
             return new_state, reward, False
-    
 
-    def expected_action(self):
-        if len(self.history) - self.max < NUM_INPUTS:
-            return -1, [], True
-        else:
-            new_state = State(self.history[self.max-NUM_INPUTS:self.max])
-            self.max += 1
-            new_change = new_state.highs[-1]
-            if new_change > 0:
-                return Actions.INCREASE.value, new_state, False
-            else:
-                return Actions.DECREASE.value, new_state, False
-
-
-
-            
+      
     def get_init_state(self) -> State:
-        state = State(self.history[0:self.max])
+        diff_hist = get_diff_hist(self.history, 0, self.max)
+        rsi = get_RSI(diff_hist)
+        state = State(diff_hist, rsi)
         self.max += 1
         return state
+
+
+    def expected_action(self):
+        if len(self.history) - self.max < LOOKBACK:
+            return State([0.0] * LOOKBACK, 0.0), 0.0, True
+        else:
+            hist_diff=get_diff_hist(self.history, self.max - LOOKBACK, self.max)
+            new_state = State(
+                hist_diff=hist_diff,
+                rsi=get_RSI(hist_diff)
+            )
+            self.max += 1
+            new_change = new_state.hist_diff[-1]
+            if new_change > 0:
+                e_action = Actions.INCREASE.value
+            else:
+                e_action = Actions.DECREASE.value
+            return e_action, new_state, False
 
 
 class Actor(tf.keras.Model):
