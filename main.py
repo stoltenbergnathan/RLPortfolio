@@ -4,11 +4,14 @@ from classes import *
 from dataFunctions import *
 
 
-EPISODES = 250
+EPISODES = 50
 GAMMA = 0.99
-TRAINING = True
-SAVE = False
-TICKERS = get_SP_tickers()
+TRAINING = False
+SAVE = True
+TRAIN_START = "2020-01-01"
+TRAIN_END = "2021-01-01"
+TEST_START = "2021-01-01"
+TEST_END =  "20202-01-01"
 
 
 def train(agent: Agent):
@@ -17,7 +20,7 @@ def train(agent: Agent):
     for episode in range(EPISODES):
         episode_reward = []
         done = False
-        env = Env("TSLA")
+        env = Env("AAPL")
         state = env.get_init_state()
         total_reward = 0
         actor_loss_history = []
@@ -66,7 +69,7 @@ GAMMA: {GAMMA}
 
 
 def test(agent: Agent):
-    env = Env("TSLA")
+    env = Env("AAPL")
     state = env.get_init_state()
     correct_guesses = 0
     total_guesses = 0

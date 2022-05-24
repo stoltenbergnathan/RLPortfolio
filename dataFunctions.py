@@ -17,7 +17,7 @@ def get_SP_tickers() -> list[str]:
 
 def get_ticker_history(ticker: str, period: str = "1y"):
     tl = yf.Ticker(ticker)
-    return tl.history(period = period, interval = "1d")
+    return tl.history(interval = "1d", start = "2020-01-01", end = "2021-01-01")
 
 
 def get_price_history(history, min, max):
