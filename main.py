@@ -1,13 +1,14 @@
 from datetime import datetime
+import random
 from matplotlib import pyplot as plt
 from classes import *
 from dataFunctions import *
 
 
-EPISODES = 50
+EPISODES = 100
 GAMMA = 0.99
-TRAINING = False
-SAVE = True
+TRAINING = True
+SAVE = False
 TRAIN_START = "2020-01-01"
 TRAIN_END = "2021-01-01"
 TEST_START = "2021-01-01"
@@ -17,10 +18,12 @@ TEST_END =  "20202-01-01"
 def train(agent: Agent):
     start = datetime.now()
     total_avg_rewards = []
+    al = []
+    cl = []
     for episode in range(EPISODES):
         episode_reward = []
         done = False
-        env = Env("AAPL")
+        env = Env(random.choice(["AAPL", "TSLA", "GOOG", "AMZN", "MSFT"]))
         state = env.get_init_state()
         total_reward = 0
         actor_loss_history = []
@@ -32,8 +35,8 @@ def train(agent: Agent):
 
             actor_loss, critic_loss = agent.learn(state.state(), action, reward, next_state.state(), done)
 
-            actor_loss_history.append(actor_loss)
-            critic_loss_history.append(critic_loss)
+            actor_loss_history.append(float(actor_loss))
+            critic_loss_history.append(float(critic_loss))
 
             state = next_state
             total_reward += reward
@@ -42,6 +45,8 @@ def train(agent: Agent):
                 print(f"Reward after episode {episode} is {total_reward}")
                 episode_reward.append(total_reward)
                 total_avg_rewards.append(np.mean(episode_reward))
+                al.append(np.mean(actor_loss_history))
+                cl.append(np.mean(critic_loss_history))
 
     if SAVE:
         agent.actor.save("actor.tf")
@@ -60,7 +65,10 @@ GAMMA: {GAMMA}
 """)
 
     ep = [i for i in range(EPISODES)]
+    plt.plot
     plt.plot(ep, total_avg_rewards, 'b')
+    plt.plot(ep, al, 'r')
+    plt.plot(ep, cl, 'g')
     plt.title("avg reward Vs episodes")
     plt.xlabel("episodes")
     plt.ylabel("average reward per 100 episodes")
@@ -69,7 +77,7 @@ GAMMA: {GAMMA}
 
 
 def test(agent: Agent):
-    env = Env("AAPL")
+    env = Env("TSLA")
     state = env.get_init_state()
     correct_guesses = 0
     total_guesses = 0
@@ -83,7 +91,6 @@ def test(agent: Agent):
             total_guesses += 1
     
     print(f"The agent correctly predicted the INCREASE / DECREASE {correct_guesses/total_guesses} percent of the time")
-
 
 
 if __name__ == "__main__":
