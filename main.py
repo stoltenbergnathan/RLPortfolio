@@ -5,10 +5,10 @@ from classes import *
 from dataFunctions import *
 
 
-EPISODES = 100
+EPISODES = 500
 GAMMA = 0.99
 TRAINING = True
-SAVE = False
+SAVE = True
 TRAIN_START = "2020-01-01"
 TRAIN_END = "2021-01-01"
 TEST_START = "2021-01-01"
